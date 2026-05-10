@@ -5,7 +5,7 @@ import alphas.alpha101 as alpha
 
 
 def build_mock_data(num_days=252, seed=42):
-    """生成一组满足 Alpha101 常见输入约束的模拟行情数据。"""
+    """Generate mock market data that matches Alpha101 input requirements."""
     rng = np.random.default_rng(seed)
 
     dates = pd.bdate_range(start="2023-01-02", periods=num_days)
@@ -58,7 +58,17 @@ def build_mock_data(num_days=252, seed=42):
         index=dates,
         columns=ticks,
     )
-    cap = close * volume
+    dollar_volume = vwap * volume
+    shares_outstanding = pd.Series(
+        {
+            "AAPL": 15_500_000_000,
+            "GOOG": 12_300_000_000,
+            "MSFT": 7_400_000_000,
+            "AMZN": 10_400_000_000,
+            "TSLA": 3_200_000_000,
+        }
+    )
+    cap = close.mul(shares_outstanding.reindex(close.columns), axis=1)
 
     sector = pd.Series(
         {
@@ -95,6 +105,7 @@ def build_mock_data(num_days=252, seed=42):
         "low": low,
         "vwap": vwap,
         "volume": volume,
+        "dollar_volume": dollar_volume,
         "cap": cap,
         "sector": sector,
         "industry": industry,

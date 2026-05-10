@@ -15,8 +15,9 @@ class Alphas:
         self.low = data.get('low')
         self.volume = data.get('volume')
         self.vwap = data.get('vwap')
-        self.returns = self.close.pct_change()
+        self.returns = self.close.pct_change(fill_method=None)
         self.cap = data.get('cap')
+        self.dollar_volume = data.get('dollar_volume')
         self.sector = data.get('sector')
         self.industry = data.get('industry')
         self.subindustry = data.get('subindustry')
@@ -28,7 +29,7 @@ class Alphas:
         return pd.DataFrame(value, index=self.close.index, columns=self.close.columns)
 
     def _adv(self, window):
-        return ts_mean(self.volume, window)
+        return ts_mean(self._dollar_volume(), window)
 
     def _group(self, level):
         return getattr(self, level, None)
@@ -61,7 +62,13 @@ class Alphas:
     def _cap(self):
         if self.cap is not None:
             return self.cap
-        return self.close * self.volume
+        raise ValueError("Market cap input is required for alphas that use `cap`.")
+
+    def _dollar_volume(self):
+        if self.dollar_volume is not None:
+            return self.dollar_volume
+        price = self.vwap if self.vwap is not None else self.close
+        return price * self.volume
 
     def _clean(self, df, fill=0.0):
         return sanitize(df).fillna(fill)
@@ -177,7 +184,8 @@ class Alphas:
         return scale(self._clean(correlation(adv20, self.low, 5)) + ((self.high + self.low) / 2) - self.close)
 
     def alpha_029(self):
-        part1 = rank(rank(scale(np.log(ts_sum(ts_min(rank(rank(-1 * rank(delta(self.close - 1, 5))), 2), 1), 1)))))
+        inner = ts_min(rank(rank(-1 * rank(delta(self.close - 1, 5)))), 1)
+        part1 = rank(rank(scale(np.log(ts_sum(inner, 1)))))
         return ts_min(product(part1, 1), 5) + ts_rank(delay(-1 * self.returns, 6), 5)
 
     def alpha_030(self):
